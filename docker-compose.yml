@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "1999:1999"
+    environment:
+      - NODE_ENV=production
+      - PORT=1999
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:1999"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
