@@ -29,7 +29,7 @@ CREATE TYPE service_type AS ENUM ('transport', 'moving', 'delivery');
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email TEXT UNIQUE NOT NULL,
-  encrypted_password TEXT NOT NULL,
+  encrypted_password TEXT,
   role user_role NOT NULL,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
@@ -135,3 +135,35 @@ INSERT INTO services (type, name, description, base_price, price_per_km) VALUES
   ('transport', 'Transport Standard', 'Transport standard pour objets de taille moyenne', 50.00, 1.50),
   ('moving', 'Déménagement Complet', 'Service complet de déménagement avec personnel', 200.00, 2.50),
   ('delivery', 'Livraison Express', 'Livraison rapide de colis', 30.00, 1.00);
+
+-- Après la création de la table users, ajoutons les triggers nécessaires
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, encrypted_password, role, first_name, last_name)
+  VALUES (
+    new.id,
+    new.email,
+    new.encrypted_password,
+    'client',  -- Par défaut, tous les nouveaux utilisateurs sont des clients
+    new.raw_user_meta_data->>'first_name',
+    new.raw_user_meta_data->>'last_name'
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Créer le trigger qui s'active après l'insertion dans auth.users
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Modifier la table users pour mieux s'intégrer avec auth.users
+ALTER TABLE users
+ALTER COLUMN encrypted_password DROP NOT NULL;
+
+-- Ajouter une politique pour permettre l'insertion par le trigger
+CREATE POLICY "Trigger can insert users"
+  ON users
+  FOR INSERT
+  WITH CHECK (true);

@@ -9,9 +9,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { supabase } from '@/lib/supabase';
+import { useToast } from "@/components/ui/use-toast";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -24,12 +27,45 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement registration logic with Supabase
+    
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Erreur",
+        description: "Les mots de passe ne correspondent pas",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
-      // Temporaire : redirection vers la page de connexion
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone,
+            role: formData.role
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Inscription réussie",
+        description: "Veuillez vérifier votre email pour confirmer votre compte",
+      });
+
       router.push("/login");
     } catch (error) {
       console.error("Erreur d'inscription:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'inscription",
+        variant: "destructive"
+      });
     }
   };
 
